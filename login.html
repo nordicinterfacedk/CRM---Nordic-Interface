@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nordic OS — Sign in</title><link rel="stylesheet" href="css/style.css"></head>
+<body class="login"><div class="lcard"><div class="brand"><span class="mark"></span>Nordic Interface</div>
+<h1>Sign in to Nordic OS</h1>
+<form id="f" autocomplete="on"><label>Username<input name="user" autocomplete="username" required></label>
+<label>Password<span class="pwrap"><input id="pw" type="password" autocomplete="current-password" required><button type="button" id="eye" aria-label="Show password">Show</button></span></label>
+<p id="err" class="error" role="alert"></p><button id="go" class="btn primary" style="width:100%">Sign in</button></form></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script><script type="module" src="js/auth.js"></script></body></html>

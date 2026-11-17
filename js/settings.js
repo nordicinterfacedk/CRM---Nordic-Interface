@@ -1,0 +1,18 @@
+import { sb, esc, toast } from './db.js';
+import { modal, csv, dl, applyTheme } from './util.js';
+const TBL=['customers','services','invoices','invoice_items','projects','tasks','calendar_events','expenses','company_settings'];
+export async function render(el,me){
+  const [cs,us]=await Promise.all([sb.from('company_settings').select('*').maybeSingle(),sb.from('profiles').select('*')]);const s=cs.data||{invoice_prefix:'NI',default_terms:'Net 14 days'};
+  const i=(n,l,t='text')=>`<label>${l}<input name="${n}" type="${t}" value="${esc(s[n])}"></label>`;
+  el.innerHTML=`<h2>Settings</h2><div class="grid2"><form class="box" id="cf"><h4>Company and invoices</h4>${i('name','Company name')}${i('cvr','CVR number')}${i('email','Email','email')}${i('phone','Phone')}${i('address','Address')}${i('website','Website')}${i('bank','Bank / payment information')}${i('invoice_prefix','Invoice number prefix')}${i('default_terms','Default payment terms')}<button class="btn primary">Save settings</button></form>
+  <div><div class="box" style="margin-bottom:14px"><h4>Appearance</h4><label>Theme<select id="th"><option value="light">Light</option><option value="dark" ${localStorage.theme==='dark'?'selected':''}>Dark</option></select></label><label>Accent color<input type="color" id="ac" value="${localStorage.accent||'#14213D'}"></label></div>
+  <div class="box" style="margin-bottom:14px"><h4>Users</h4>${us.data.map(u=>`<p><b>${esc(u.full_name)}</b> <small>${esc(u.role)}, ${esc(u.email)}</small></p>`).join('')}<small>New users must be created server-side: add them under Auth > Users in Supabase, then insert a row in <code>profiles</code> with the same id and company_id. The browser must never hold the service-role key.</small></div>
+  <div class="box"><h4>Data</h4><div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn" data-x="customers">Customers CSV</button><button class="btn" data-x="invoices">Invoices CSV</button><button class="btn" data-x="expenses">Financial data CSV</button><button class="btn" data-x="projects">Projects CSV</button></div><div class="row" style="justify-content:flex-start;margin-top:10px"><button class="btn" id="bk">Download backup</button><button class="btn" id="rs">Restore backup</button><input type="file" id="fl" accept=".json" hidden></div></div></div></div>`;
+  el.querySelector('#cf').onsubmit=async e=>{e.preventDefault();const {error}=await sb.from('company_settings').upsert({company_id:me.company_id,...Object.fromEntries(new FormData(e.target))});toast(error?error.message:'Settings saved',!!error)};
+  el.querySelector('#th').onchange=e=>{localStorage.theme=e.target.value;applyTheme()};el.querySelector('#ac').oninput=e=>{localStorage.accent=e.target.value;applyTheme()};
+  el.querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{const {data,error}=await sb.from(b.dataset.x).select('*');if(error)return toast(error.message,1);dl(b.dataset.x+'.csv',csv(data))});
+  el.querySelector('#bk').onclick=async()=>{const o={};for(const t of TBL)o[t]=(await sb.from(t).select('*')).data||[];dl('nordic-os-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(o),'application/json')};
+  const fl=el.querySelector('#fl');el.querySelector('#rs').onclick=()=>fl.click();
+  fl.onchange=async()=>{if(!confirm('Restore will overwrite records with the same ids. Continue?'))return;try{const o=JSON.parse(await fl.files[0].text());
+    for(const t of TBL)if(o[t]?.length){const {error}=await sb.from(t).upsert(o[t],{onConflict:t==='company_settings'?'company_id':'id'});if(error)throw new Error(t+': '+error.message)}toast('Backup restored')}catch(e){toast(e.message,1)}};
+}
